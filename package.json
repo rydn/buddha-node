@@ -1,0 +1,22 @@
+{
+  "author": "'Ryan Dick <'noxinoobin@gmail.com'>",
+  "name": "buddhabrot",
+  "description": "Renders a subset of the julia mandlebrot called the buddhabrot",
+  "version": "0.0.0",
+  "repository": {
+    "url": ""
+  },
+  "main": "app.js",
+  "scripts": {
+    "test": "test buddha"
+  },
+  "engines": {
+    "node": "~0.7.3 || 0.7.3-pre || 0.8"
+  },
+  "dependencies": {
+	"canvas":"*",
+	"sylvester":"*"
+},
+  "devDependencies": {},
+  "optionalDependencies": {}
+}
