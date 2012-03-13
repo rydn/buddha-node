@@ -2,9 +2,9 @@
   "author": "'Ryan Dick <'noxinoobin@gmail.com'>",
   "name": "buddhabrot",
   "description": "Renders a subset of the julia mandlebrot called the buddhabrot",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "repository": {
-    "url": ""
+    "url": "http://bitbucket.net/ryandick/buddha-node-brot/"
   },
   "main": "app.js",
   "scripts": {
@@ -16,7 +16,4 @@
   "dependencies": {
 	"canvas":"*",
 	"nclosure":"*"
-},
-  "devDependencies": {},
-  "optionalDependencies": {}
 }

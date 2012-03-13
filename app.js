@@ -8,16 +8,26 @@ var canvas = new Canvas(600, 800);
 var context;
 var N;
 var image;
-goog.require('goog.math.Matrix'); //matricies google closure unit
 var exposures = [];
 var maxexposure = [0, 0, 0];
 var counter = 0;
-
+var os = require('os');
+var renderTimeArr = [{}]; //for storing rendering times
+var renderLoadArr = [{}]; //for storing load data
+var latestInfo;
 var start = new Date().getTime();
+var totalStart = new Date().getTime();
+var http = require('http');
+goog.require('goog.math.Matrix'); //matricies google closure unit
+//event listener for writing to file and emmiting
+var fs = require('fs'),
+    out = fs.createWriteStream(__dirname + '/buddha.png');
+
+
 
 function print_infobar() {
   var passed = new Date();
-  var passed_s = (passed.getTime() - start) / 1000;
+  var passed_s = (passed.getTime() - totalStart) / 1000;
 
   var passed_string = [];
   passed_string[0] = Math.floor(passed_s / (60 * 60));
@@ -28,21 +38,41 @@ function print_infobar() {
   if (passed_string[1] < 10) passed_string[1] = '0' + passed_string[1];
   if (passed_string[2] < 10) passed_string[2] = '0' + passed_string[2];
 
-  context.fillText('Buddhabrot', 10, 10);
+  //context.fillText('Buddhabrot', 10, 10);
   context.fillText('Iteration: ' + counter, 10, 25);
   context.fillText('Runtime: ' + passed_string.join(":"), 10, 40);
 }
 
-function draw() {
+function draw(res) {
   if (counter > limit) return;
   counter++;
-
+  var now = new Date().getTime();
+  var timeLastIteration = now - start;
+  start = new Date().getTime();
+  renderTimeArr.push({
+    start: timeLastIteration
+  });
+  var avg = Math.round(((now - totalStart) / counter) * 100) / 100;
+  if (counter !== 1) {
+    latestInfo = '[Iteration compute time: ' + timeLastIteration + 'ms, avg: ' + avg + 'ms, total: ' + ((new Date().getTime() - totalStart) / 1000) + 'sec]';
+    console.log(latestInfo);
+    var load = os.loadavg();
+    renderLoadArr.push({
+      start: load
+    });
+    console.log('[load Averages 1min: ' + load[0] + ', 5min: ' + load[1] + ', 15min: ' + load[2] + ']')
+  }
+  console.log('');
+  console.log('[Begining iteration: ' + counter + ']')
+  console.log('--------------------------');
+  console.log('...plotting...');
   plot();
+  console.log('...calculating max exposure...');
   findMaxExposure();
+  console.log('...rendering...')
   render();
-
+  console.log('...printing info...')
   print_infobar();
-
   setTimeout(draw, 0);
 }
 
@@ -115,28 +145,44 @@ function render() {
     for (y = -1; y < 2; y += 1) { // 3
       for (x = -1; x < 2; x += 1) {
         context.putImageData(image, 0, 0);
-        console.log('rendering : ' + require('util').inspect(image));
+
       }
     }
   }
+  console.log('...updating canvas object...');
   context.globalAlpha = 1.0;
 }
 
-function init() {
+function init(cb) {
   console.log('running init');
+  console.log('...setting preferances');
   context = canvas.getContext('2d');
   context.fillStyle = '#fff';
   context.font = '10px sans-serif';
   context.textBaseline = 'top';
+  console.log('...initiating canvas object');
   N = canvas.width;
   image = context.createImageData(N, N);
+  console.log('...praying to the devine buddha');
+  console.log('done!');
+  console.log('init run, begining render..');
   for (var pass = 0; pass < 3; pass++)
+
   exposures[pass] = new goog.math.Matrix(N, N);
 
   for (var i = 0; i < N; i++)
   for (var j = 0; j < N; j++)
   image.data[(i * N + j) * 4 + 3] = 255; // alpha channel
-  draw();
+  cb();
 }
 //start renderer
-init();
+init(function() {
+  http.createServer(function(req, res) {
+    res.writeHead(200, {
+      'Content-Type': 'text/html'
+    });
+    res.end('<div id="info">'+latestInfo+'</div>' + '<meta http-equiv="refresh" content="10;" />' + '<img src="' + canvas.toDataURL() + '" />');
+  }).listen(3000);
+  console.log('Server started on port 3000');
+  draw();
+});
