@@ -16,4 +16,5 @@
   "dependencies": {
 	"canvas":"*",
 	"nclosure":"*"
+  }
 }
