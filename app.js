@@ -4,7 +4,7 @@ var limit = 10000;
 
 require('nclosure').nclosure(); //inport google closure name space
 var Canvas = require('canvas');
-var canvas = new Canvas(600, 800);
+var canvas = new Canvas(1024, 1024);
 var context;
 var N;
 var currentRender;
@@ -63,7 +63,7 @@ function draw(res) {
 	}
 	console.log(' ');
 
-	console.log('[Begining iteration: ' + counter + ']')
+	console.log('[Begining iteration: ' + counter + ']');
 	console.log('--------------------------');
 
 	console.log('...plotting...');
@@ -88,13 +88,13 @@ function save() {
 	fs = require('fs');
 	sys = require('sys');
 	try {
-		context.canvas.toDataURL(function(err, cb64){
+		context.canvas.toDataURL(function(err, cb64) {
 			currentRender = cb64;
-		context.canvas.toBuffer(function(errr, buffer) {
-			fs.writeFile(__dirname + '/buddha.png', buffer);
-			console.log('...file saved');
+			context.canvas.toBuffer(function(errr, buffer) {
+				fs.writeFile(__dirname + '/buddha.png', buffer);
+				console.log('...file saved');
+			});
 		});
-	});
 	} catch (e) {
 		console.log('failed to save image, err: ' + e);
 	}
@@ -207,7 +207,7 @@ init(function() {
 			'Content-Type': 'text/html'
 		});
 		try {
-			res.end( '<meta http-equiv="refresh" content="10;" >'+'<div id="info">' + latestInfo + '</div>' +'<img src="' + currentRender + '"></meta>');
+			res.end('<meta http-equiv="refresh" content="10;" >' + '<div id="info">' + latestInfo + '</div>' + '<img src="' + currentRender + '"></meta>');
 		} catch (e) {
 			console.log(e);
 			res.end('<div id="info">' + latestInfo + '</div>' + '<meta http-equiv="refresh" content="10;" />');
