@@ -15,7 +15,7 @@ module.exports = function(job, done) {
         sys = require('sys'),
         os = require('os'),
         Canvas = require('canvas');
-        console.log(done);
+    console.log(done);
     // variables passed through job object
     var tollerances = job.data.params.tollerances;
     var points = job.data.params.points;
@@ -52,11 +52,13 @@ module.exports = function(job, done) {
         if (passed_string[2] < 10) passed_string[2] = '0' + passed_string[2];
 
         //context.fillText('Buddhabrot', 10, 10);
-        context.fillText('Iteration: ' + counter, 10, 25);
-        context.fillText('Runtime: ' + passed_string.join(":"), 10, 40);
+        jobLog('Iteration: ' + counter, 10, 25);
+        jobLog('Runtime: ' + passed_string.join(":"), 10, 40);
     }
 
     function draw() {
+        //  increment job progress
+        job.progress(counter, limit);
         //  if counter hits render limit
         if (counter > limit) {
             //  save to file
@@ -68,25 +70,14 @@ module.exports = function(job, done) {
             });
             return;
         }
-
         counter++;
-        //  increment job progress
-        job.progress(counter, limit);
-        jobLog('[Parent iteration: ' + counter + ']');
-        // var now = new Date().getTime();
-        // var timeLastIteration = now - start;
-        // start = new Date().getTime();
-        // if (counter !== 1) {
-        // var avg = Math.round(((now - totalStart) / counter) * 100) / 100;
-        //     latestInfo = '[Iteration compute time: ' + timeLastIteration + 'ms, avg: ' + avg + 'ms, total: ' + ((new Date().getTime() - totalStart) / 1000) + 'sec]';
-        //     jobLog(latestInfo);
-        // }
-        // jobLog(' ');
         plot();
         findMaxExposure();
         render();
-        //jobLog('printing info')
-        //print_infobar();
+        if (Math.floor(counter / 2)) {
+            print_infobar();
+        }
+
         setTimeout(draw, 0);
     }
 
@@ -106,7 +97,6 @@ module.exports = function(job, done) {
     }
 
     function plot() {
-        jobLog('plotting');
         var x, y, i;
         for (i = 0; i <= points; i++) {
             x = Math.random() * 3 - 2;
@@ -116,7 +106,6 @@ module.exports = function(job, done) {
     }
 
     function iterate(x0, y0, pass) {
-        jobLog(' calculating tollerances for pass: ' + pass);
         var x = 0,
             y = 0,
             xnew, ynew, drawnX, drawnY;
@@ -148,7 +137,7 @@ module.exports = function(job, done) {
     }
 
     function findMaxExposure() {
-        jobLog('calculating three pass max exposure');
+
         for (var pass = 0; pass < 3; pass++) {
             goog.math.Matrix.map(exposures[pass], function(value, i, j, matrix) {
                 if (value > maxexposure[pass]) {
@@ -159,12 +148,11 @@ module.exports = function(job, done) {
     }
 
     function render() {
-        jobLog('rendering');
+
         var data = image.data,
             r, g, b, tmpExposure, i, x, y;
 
         for (var pass = 0; pass < 3; pass++) {
-            jobLog('pass ' + pass);
             goog.math.Matrix.map(exposures[pass], function(value, i, j, matrix) {
                 var ramp = value / (maxexposure[pass] / 2.5);
                 if (ramp > 1 || isNaN(ramp)) ramp = 1;
@@ -183,7 +171,7 @@ module.exports = function(job, done) {
                 }
             }
         }
-        jobLog('updating canvas object');
+
         context.globalAlpha = 1.0;
 
     }
@@ -210,9 +198,10 @@ module.exports = function(job, done) {
         image.data[(i * N + j) * 4 + 3] = 255; // alpha channel
         cb();
     }
-    function jobLog(message){
+
+    function jobLog(message) {
         //console.log(message);
-        //job.log(message);
+        job.log(message);
     }
 
     //  istantiation
