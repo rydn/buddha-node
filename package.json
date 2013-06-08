@@ -14,7 +14,11 @@
     "node": "0.6.*"
   },
   "dependencies": {
-	"canvas":"*",
-	"nclosure":"*"
+    "canvas": "*",
+    "nclosure": "*",
+    "kue": "~0.6.2",
+    "express": "3.x",
+    "jshtml": "*",
+    "redis": "~0.8.3"
   }
 }
