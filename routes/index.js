@@ -12,29 +12,32 @@ exports.index = function(req, res) {
 };
 
 exports.initRender = function(req, res) {
-    Queue.createJob(function(jobItem) {
-        console.log('new job item created! ', jobItem);
-        Queue.processWithWorker('buddhabrot', function(_jobName, _worker) {
-            console.log('Job ' + _jobName + ' enqueued, details: \n' + _worker);
-            //	return work object as response to http request
-            res.json({
-                jobname: _jobName,
-                worker: _worker
-            });
+    //  create new render job
+    Queue.createQueueItem(function($item) {
+        console.log('new item created with queueID:', $item.data.queueID);
 
-		/**
-			Worker events
-		 */
-            _worker.on('complete', function() {
-                console.log(_worker + ' \n complete');
-            });
 
-            _worker.on('failed', function() {
-                console.log(_worker + ' \n failed');
-            });
-            _worker.on('progress', function() {
-                process.stdout.write('\r  job #' + job.id + ' ' + progress + '% complete');
-            });
+
+
+
+        $item.on('complete', function() {
+                //  return work object as response to http request
+        res.json({
+            item: $item
         });
+
+            console.log($item + ' \n complete');
+
+        });
+
+        $item.on('failed', function() {
+            console.log($item + ' \n failed');
+        });
+        $item.on('progress', function(progress) {
+            process.stdout.write('\r  job #' + $item.data.queueID+ ' ' + progress + '% complete');
+        });
+        Queue.processWithWorker('buddhabrot');
     });
+
+
 };

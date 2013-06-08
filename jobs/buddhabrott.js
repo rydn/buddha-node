@@ -1,28 +1,28 @@
-/*
-	deps
- */
-//inport google closure name space
-require('nclosure').nclosure();
-//	matricies google closure unit
-goog.require('goog.math.Matrix');
-var fs = require('fs'),
-    sys = require('sys'),
-    os = require('os'),
-    Canvas = require('canvas');
 /**
  *
  * @param  {Kue_Job}   job  [ The job in the Kue ]
  * @param  {Function} done [ callback ]
  */
 module.exports = function(job, done) {
-
+/*
+    deps
+ */
+    //inport google closure name space
+    require('nclosure').nclosure();
+    //  matricies google closure unit
+    goog.require('goog.math.Matrix');
+    var fs = require('fs'),
+        sys = require('sys'),
+        os = require('os'),
+        Canvas = require('canvas');
+        console.log(done);
     // variables passed through job object
-    var iterations = job.params.iterations;
-    var points = job.params.points;
-    var limit = job.params.limit;
+    var tollerances = job.data.params.tollerances;
+    var points = job.data.params.points;
+    var limit = job.data.params.limit;
 
 
-    var canvas = new Canvas(job.size.x, job.size.y);
+    var canvas = new Canvas(job.data.size.x, job.data.size.y);
 
     var context;
     var N;
@@ -34,7 +34,6 @@ module.exports = function(job, done) {
 
     var counter = 0;
 
-    var renderLoadArr = [{}]; //for storing load data
     var latestInfo;
     var start = new Date().getTime();
     var totalStart = new Date().getTime();
@@ -58,11 +57,11 @@ module.exports = function(job, done) {
     }
 
     function draw() {
-        //	if counter hits render limit
+        //  if counter hits render limit
         if (counter > limit) {
-            //	save to file
+            //  save to file
             save();
-            //	call back with base64 render
+            //  call back with base64 render
             done(null, {
                 done_time: new Date().getTime(),
                 result_base64: currentRender
@@ -71,22 +70,22 @@ module.exports = function(job, done) {
         }
 
         counter++;
-        //	increment job progress
+        //  increment job progress
         job.progress(counter, limit);
-        job.log('[Parent iteration: ' + counter + ']');
+        jobLog('[Parent iteration: ' + counter + ']');
         // var now = new Date().getTime();
         // var timeLastIteration = now - start;
         // start = new Date().getTime();
         // if (counter !== 1) {
         // var avg = Math.round(((now - totalStart) / counter) * 100) / 100;
         //     latestInfo = '[Iteration compute time: ' + timeLastIteration + 'ms, avg: ' + avg + 'ms, total: ' + ((new Date().getTime() - totalStart) / 1000) + 'sec]';
-        //     job.log(latestInfo);
+        //     jobLog(latestInfo);
         // }
-        // job.log(' ');
+        // jobLog(' ');
         plot();
         findMaxExposure();
         render();
-        //job.log('printing info')
+        //jobLog('printing info')
         //print_infobar();
         setTimeout(draw, 0);
     }
@@ -98,16 +97,16 @@ module.exports = function(job, done) {
                 currentRender = cb64;
                 context.canvas.toBuffer(function(errr, buffer) {
                     fs.writeFile(__dirname + '/buddha.png', buffer);
-                    job.log('file saved');
+                    jobLog('file saved');
                 });
             });
         } catch (e) {
-            job.log('failed to save image, err: ' + e);
+            jobLog('failed to save image, err: ' + e);
         }
     }
 
     function plot() {
-        job.log('plotting');
+        jobLog('plotting');
         var x, y, i;
         for (i = 0; i <= points; i++) {
             x = Math.random() * 3 - 2;
@@ -117,16 +116,16 @@ module.exports = function(job, done) {
     }
 
     function iterate(x0, y0, pass) {
-        job.log(' calculating iterations for pass: ' + pass);
+        jobLog(' calculating tollerances for pass: ' + pass);
         var x = 0,
             y = 0,
             xnew, ynew, drawnX, drawnY;
-        for (var i = 0; i <= iterations[pass]; i++) {
+        for (var i = 0; i <= tollerances[pass]; i++) {
             xnew = x * x - y * y + x0;
             ynew = 2 * x * y + y0;
             if ((xnew * xnew + ynew * ynew) > 4) { // inlined iterate_draw
                 x = 0, y = 0, xnew, ynew, drawnX, drawnY;
-                for (var i = 0; i <= iterations[pass]; i++) {
+                for (var i = 0; i <= tollerances[pass]; i++) {
                     xnew = x * x - y * y + x0;
                     ynew = 2 * x * y + y0;
                     if (i > 3) {
@@ -149,7 +148,7 @@ module.exports = function(job, done) {
     }
 
     function findMaxExposure() {
-        job.log('calculating three pass max exposure');
+        jobLog('calculating three pass max exposure');
         for (var pass = 0; pass < 3; pass++) {
             goog.math.Matrix.map(exposures[pass], function(value, i, j, matrix) {
                 if (value > maxexposure[pass]) {
@@ -160,12 +159,12 @@ module.exports = function(job, done) {
     }
 
     function render() {
-        job.log('rendering');
+        jobLog('rendering');
         var data = image.data,
             r, g, b, tmpExposure, i, x, y;
 
         for (var pass = 0; pass < 3; pass++) {
-            job.log('pass ' + pass);
+            jobLog('pass ' + pass);
             goog.math.Matrix.map(exposures[pass], function(value, i, j, matrix) {
                 var ramp = value / (maxexposure[pass] / 2.5);
                 if (ramp > 1 || isNaN(ramp)) ramp = 1;
@@ -184,26 +183,26 @@ module.exports = function(job, done) {
                 }
             }
         }
-        job.log('updating canvas object');
+        jobLog('updating canvas object');
         context.globalAlpha = 1.0;
 
     }
 
     function init(cb) {
-        job.log('running canvas initailisation');
+        jobLog('running canvas initailisation');
 
-        job.log('setting preferances');
+        jobLog('setting preferances');
         context = canvas.getContext('2d');
         context.fillStyle = '#fff';
         context.font = '10px sans-serif';
         context.textBaseline = 'top';
 
-        job.log('initiating canvas object');
+        jobLog('initiating canvas object');
         N = canvas.width;
         image = context.createImageData(N, N);
 
 
-        job.log('calculating exposures and alpha channel values from complex plane');
+        jobLog('calculating exposures and alpha channel values from complex plane');
         for (var pass = 0; pass < 3; pass++)
         exposures[pass] = new goog.math.Matrix(N, N);
         for (var i = 0; i < N; i++)
@@ -211,8 +210,12 @@ module.exports = function(job, done) {
         image.data[(i * N + j) * 4 + 3] = 255; // alpha channel
         cb();
     }
+    function jobLog(message){
+        //console.log(message);
+        //job.log(message);
+    }
 
-    //	istantiation
+    //  istantiation
     init(function() {
         draw();
     });
