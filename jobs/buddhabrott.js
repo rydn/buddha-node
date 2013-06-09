@@ -87,8 +87,8 @@ module.exports = function(job, done) {
             context.canvas.toDataURL(function(err, cb64) {
                 currentRender = cb64;
                 context.canvas.toBuffer(function(errr, buffer) {
-                    fs.writeFile(__dirname + '/buddha.png', buffer);
-                    jobLog('file saved');
+                    fs.writeFile(__dirname + '/'+job.queueID+'.png', buffer);
+                    jobLog('file saved, '+job.queueID+'.png');
                 });
             });
         } catch (e) {
