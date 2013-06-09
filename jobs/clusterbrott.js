@@ -1,21 +1,79 @@
+/*
+    deps
+ */
+//inport google closure name space
+require('nclosure').nclosure();
+//  matricies google closure unit
+goog.require('goog.math.Matrix');
+var fs = require('fs'),
+    sys = require('sys'),
+    os = require('os'),
+    Canvas = require('canvas'),
+    moment = require('moment'),
+    genUUID = require('../lib/genUUID');
+
+function jobLog(message) {
+    //console.log(JSON.stringify({action:'log', value:message}));
+    //console.log('Spawed Worker [' + process.pid + '] - ' + message);
+}
+jobLog(' online.');
+/*
+    upon receiving instruction to compute
+ */
+process.on('message', function(m) {
+    if (m.action == 'startRender') {
+        var data = m.value;
+        jobLog('received instruction to begin computation.' + m);
+        var $job = {
+            data: newJob(),
+            progress: function(current, limit) {
+                var message = 'Progress ' + current + '/' + limit;
+                console.log(JSON.stringify({action:'progress', value:message}));
+            }
+        };
+
+        //  initate work actor and wait to be called back once work is complete
+        actor($job, function(err, workDone) {
+            if (err) process.send({action:'error', value:err});
+            else process.send({action:'done', value:workDone});
+        });
+    } else {
+        jobLog(m);
+    }
+});
+
+/*
+    Private  methods
+ */
+//  create job object
+
+function newJob() {
+    var now = moment();
+    return {
+        title: now.format('DD/MM/YYYY HH:MM:SS'),
+        queueID: genUUID(),
+        created_time: new Date().getTime(),
+        params: {
+            tollerances: [1250, 250, 50],
+            points: 500,
+            limit: 250
+        },
+        size: {
+            x: 600,
+            y: 600
+        }
+    };
+}
+
 /**
+ *  render new fractal renturn when done
  *
  * @param  {Kue_Job}   job  [ The job in the Kue ]
  * @param  {Function} done [ callback ]
  */
-module.exports = function(job, done) {
-/*
-    deps
- */
-    //inport google closure name space
-    require('nclosure').nclosure();
-    //  matricies google closure unit
-    goog.require('goog.math.Matrix');
-    var fs = require('fs'),
-        sys = require('sys'),
-        os = require('os'),
-        Canvas = require('canvas');
-    console.log(done);
+
+function actor(job, done) {
+
     // variables passed through job object
     var tollerances = job.data.params.tollerances;
     var points = job.data.params.points;
@@ -74,10 +132,6 @@ module.exports = function(job, done) {
         plot();
         findMaxExposure();
         render();
-        if (Math.floor(counter / 2)) {
-            print_infobar();
-        }
-
         setTimeout(draw, 0);
     }
 
@@ -87,8 +141,8 @@ module.exports = function(job, done) {
             context.canvas.toDataURL(function(err, cb64) {
                 currentRender = cb64;
                 context.canvas.toBuffer(function(errr, buffer) {
-                    fs.writeFile(__dirname + '/'+job.queueID+'.png', buffer);
-                    jobLog('file saved, '+job.queueID+'.png');
+                    fs.writeFile(__dirname + '/' + job.queueID + '.png', buffer);
+                    jobLog('file saved, ' + job.queueID + '.png');
                 });
             });
         } catch (e) {
@@ -199,13 +253,9 @@ module.exports = function(job, done) {
         cb();
     }
 
-    function jobLog(message) {
-        //console.log(message);
-        job.log(message);
-    }
 
     //  istantiation
     init(function() {
         draw();
     });
-};
+}

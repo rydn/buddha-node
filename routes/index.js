@@ -14,9 +14,6 @@ exports.index = function(req, res) {
 exports.initRender = function(req, res) {
     //  create new render job
     Queue.createQueueItem(function($item) {
-        console.log('new item created with queueID:', $item.data.queueID);
-
-
         $item.on('complete', function() {
             //  return work object as response to http request
             res.json({
@@ -24,7 +21,6 @@ exports.initRender = function(req, res) {
             });
 
             console.log($item.data.queueID + ' \n complete');
-
         });
 
         $item.on('failed', function() {
