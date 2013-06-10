@@ -20,27 +20,39 @@ jobLog(' online.');
 /*
     upon receiving instruction to compute
  */
-process.on('message', function(m) {
-    if (m.action == 'startRender') {
-        var data = m.value;
-        jobLog('received instruction to begin computation.' + m);
-        var $job = {
-            data: newJob(),
-            progress: function(current, limit) {
-                var message = 'Progress ' + current + '/' + limit;
-                console.log(JSON.stringify({action:'progress', value:message}));
-            }
-        };
+module.exports = {
+    startRender: function(m) {
+        if (m.action == 'startRender') {
+            var data = m.value;
+            jobLog('received instruction to begin computation.' + m);
+            var $job = {
+                data: newJob(),
+                progress: function(current, limit) {
+                    var message = 'Progress ' + current + '/' + limit;
+                    process.send({
+                        action: 'progress',
+                        value: message
+                    });
+                }
+            };
 
-        //  initate work actor and wait to be called back once work is complete
-        actor($job, function(err, workDone) {
-            if (err) process.send({action:'error', value:err});
-            else process.send({action:'done', value:workDone});
-        });
-    } else {
-        jobLog(m);
+            //  initate work actor and wait to be called back once work is complete
+            actor($job, function(err, workDone) {
+                if (err) process.send({
+                        action: 'error',
+                        value: err
+                    });
+                else process.send({
+                        action: 'done',
+                        value: workDone
+                    });
+            });
+        } else {
+            jobLog(m);
+        }
     }
-});
+
+};
 
 /*
     Private  methods
@@ -246,10 +258,10 @@ function actor(job, done) {
 
         jobLog('calculating exposures and alpha channel values from complex plane');
         for (var pass = 0; pass < 3; pass++)
-        exposures[pass] = new goog.math.Matrix(N, N);
+            exposures[pass] = new goog.math.Matrix(N, N);
         for (var i = 0; i < N; i++)
-        for (var j = 0; j < N; j++)
-        image.data[(i * N + j) * 4 + 3] = 255; // alpha channel
+            for (var j = 0; j < N; j++)
+                image.data[(i * N + j) * 4 + 3] = 255; // alpha channel
         cb();
     }
 

@@ -1,3 +1,0 @@
-[submodule "node_modules/nclosure"]
-	path = node_modules/nclosure
-	url = git://github.com/gatapia/nclosure.git
