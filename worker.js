@@ -11,7 +11,7 @@ var fs = require( 'fs' ),
 	Hook = require( './lib/Hook' ).Hook,
 	EventEmitter2 = require( 'eventemitter2' ).EventEmitter2,
 	isActive = false;
-//  Event source 
+//  Event source
 var eventSource = new EventEmitter2( {
 	wildcard: true,
 	delimiter: '::',
@@ -41,7 +41,8 @@ workSocket.on( 'hook::newListener', function( type, hookName ) {
 //  on the issue of work enqueue new work and pass data to worker
 workSocket.on( 'workmaster::render', function( job ) {
 	if ( !isActive ) {
-		$log( 'received instruction to begin rendering, jobid: ' + job.data.queueID );
+		$log( 'received instruction to begin rendering, jobid: ' + job.data.queueID, 'render' );
+
 		workSocket.emit( 'start', {
 			name: workSocket.name,
 			job: job,
@@ -62,21 +63,19 @@ workSocket.on( 'workmaster::render', function( job ) {
 //  log wrapper
 
 function $log( m, type ) {
-	if ( config.log ) {
-		if ( type ) console.log( '[ ' + moment( ).format( 'hh:mm:ss DD/MM/YYYY' ) + ' ] -- Worker ::' + type + '[' + process.pid + '] =>	    ' + m );
+	console.log( '[ ' + moment( ).format( 'hh:mm:ss DD/MM/YYYY' ) + ' ] -- Worker[' + process.pid + '] =>	' + m );
+	//	push onto socket
+	workSocket.emit( 'log', {
+		m: m,
+		pid: process.pid,
+		type: type
+	} );
+	return;
 
-		else console.log( '[ ' + moment( ).format( 'hh:mm:ss DD/MM/YYYY' ) + ' ] -- Worker[' + process.pid + '] =>	    ' + m );
-		//	push onto socket
-		workSocket.emit( 'log', {
-			m: m,
-			pid: process.pid
-		} );
-		return;
-	} else return;
 }
 
 //      event handlers for event source
-//      
+//
 
 
 //  on job complete
@@ -101,11 +100,11 @@ var startRender = function( m ) {
 	var lastTime = new Date( ).getTime( );
 	var data = m.data;
 	//	work out at what interval to display progress
-	var currentSplit = limit / 8;
+
 	var $job = {
 		data: newJob( ),
 		progress: function( current, limit ) {
-
+			var currentSplit = limit / 8;
 			//	if current surpasses split
 			if ( current >= currentSplit ) {
 				//	if current is wholy devisable by current split
@@ -125,6 +124,7 @@ var startRender = function( m ) {
 
 
 	};
+	$log( 'starting render of fractal with dimentions: ' + $job.data.size.x + 'x' + $job.data.size.y + ' going to iterate a maximum of ' + $job.data.params.limit + ' times to discover the escape orbits for ' + $job.data.params.points + ' points', 'render' );
 	//  initate work actor and wait to be called back once work is complete
 	actor( $job, function( err, workDone ) {
 		if ( err ) eventSource.emit( 'error', {
@@ -148,13 +148,13 @@ function newJob( ) {
 		queueID: genUUID( ),
 		created_time: new Date( ).getTime( ),
 		params: {
-			tollerances: [ 750, 125, 25 ],
-			points: 25000,
-			limit: 1000
+			tollerances: [ 800, 200, 50 ],
+			points: 6000,
+			limit: 10000
 		},
 		size: {
-			x: 280,
-			y: 320
+			x: 2048,
+			y: 2048
 		}
 	};
 }
@@ -194,16 +194,15 @@ function actor( job, done ) {
 		if ( passed_string[ 1 ] < 10 ) passed_string[ 1 ] = '0' + passed_string[ 1 ];
 		if ( passed_string[ 2 ] < 10 ) passed_string[ 2 ] = '0' + passed_string[ 2 ];
 		//context.fillText('Buddhabrot', 10, 10);
-		$log( 'Iteration: ' + counter, 10, 25 );
-		$log( 'Runtime: ' + passed_string.join( ":" ), 10, 40 );
+		console.log( 'Runtime: ' + passed_string.join( ":" ), 10, 40 );
 	}
 
 	function draw( ) {
 		//  increment job progress
 		job.progress( counter, limit );
 		//  if counter hits render limit
-		if ( counter > limit ) {
-			//	print summary 
+		if ( counter >= limit ) {
+			//	print summary
 			print_infobar( );
 			//	render to canvas
 			render( );
@@ -223,17 +222,14 @@ function actor( job, done ) {
 	}
 
 	function save( ) {
-		try {
-			context.canvas.toDataURL( function( err, cb64 ) {
-				currentRender = cb64;
-				context.canvas.toBuffer( function( errr, buffer ) {
-					fs.writeFile( __dirname + '/public/images/renders/' + job.data.queueID + '.png', buffer );
-					$log( 'file saved to "public/images/renders/' + job.data.queueID + '.png"' );
-				} );
-			} );
-		} catch ( e ) {
-			$log( 'failed to save image, err: ' + e );
-		}
+
+		context.canvas.toBuffer( function( errr, buffer ) {
+			fs.writeFile( __dirname + '/public/images/renders/' + job.data.queueID + '.png', buffer );
+			$log( 'file saved to "public/images/renders/' + job.data.queueID + '.png"' );
+		} );
+
+
+
 	}
 
 	function plot( ) {
