@@ -10,7 +10,6 @@ var fs = require( 'fs' ),
 	genUUID = require( './lib/genUUID' ),
 	Hook = require( './lib/Hook' ).Hook,
 	EventEmitter2 = require( 'eventemitter2' ).EventEmitter2,
-	buddhaWorker = require( './jobs/clusterbrott' ),
 	isActive = false;
 //  Event source 
 var eventSource = new EventEmitter2( {
@@ -62,16 +61,20 @@ workSocket.on( 'workmaster::render', function( job ) {
 } );
 //  log wrapper
 
-function $log( m ) {
+function $log( m, type ) {
 	if ( config.log ) {
-		var now = moment( );
-		console.log( now.format( "Do MMMM HH:MM:SS " ) + ' | Worker [' + process.pid + ']  =>    ' + m );
+		if ( type ) console.log( '[ ' + moment( ).format( 'hh:mm:ss DD/MM/YYYY' ) + ' ] -- Worker ::' + type + '[' + process.pid + '] =>	    ' + m );
+
+		else console.log( '[ ' + moment( ).format( 'hh:mm:ss DD/MM/YYYY' ) + ' ] -- Worker[' + process.pid + '] =>	    ' + m );
+		//	push onto socket
 		workSocket.emit( 'log', {
 			m: m,
 			pid: process.pid
 		} );
+		return;
 	} else return;
 }
+
 //      event handlers for event source
 //      
 
@@ -97,26 +100,30 @@ workSocket.connect( );
 var startRender = function( m ) {
 	var lastTime = new Date( ).getTime( );
 	var data = m.data;
+	//	work out at what interval to display progress
+	var currentSplit = limit / 8;
 	var $job = {
 		data: newJob( ),
 		progress: function( current, limit ) {
-			if ( config.log ) {
-				if ( current >= ( limit / 2.5 ) ) {
-					if ( ( current % ( limit / 2.5 ) ) === 0 ) {
-						var computeTime = ( new Date( ).getTime( ) - lastTime ) / ( limit / 2.5 );
-						lastTime = new Date( ).getTime( );
-						var iterationsLeft = limit - current;
-						var timeLeft = Math.round( ( ( ( computeTime * iterationsLeft ) / 1000 ) / 60 ) * 100 ) / 100;
-						var message = 'Progress ' + current + '/' + limit + ', compute time: ' + computeTime + 'ms/iteration, time left: ' + timeLeft + ' minutes';
-						workSocket.emit( 'progress', {
-							message: message,
-							values: [ limit, current ]
-						} );
-					}
+
+			//	if current surpasses split
+			if ( current >= currentSplit ) {
+				//	if current is wholy devisable by current split
+				if ( ( current % currentSplit ) === 0 ) {
+					var computeTime = ( new Date( ).getTime( ) - lastTime ) / currentSplit;
+					lastTime = new Date( ).getTime( );
+					var iterationsLeft = limit - current;
+					var timeLeft = Math.round( ( ( ( computeTime * iterationsLeft ) / 1000 ) / 60 ) * 100 ) / 100;
+					var message = 'Progress ' + current + '/' + limit + ', compute time: ' + computeTime + 'ms/iteration, time left: ' + timeLeft + ' minutes';
+					workSocket.emit( 'progress', {
+						message: message,
+						values: [ limit, current ]
+					} );
 				}
 			}
-			//$log( message );
 		}
+
+
 	};
 	//  initate work actor and wait to be called back once work is complete
 	actor( $job, function( err, workDone ) {
@@ -137,17 +144,17 @@ var startRender = function( m ) {
 function newJob( ) {
 	var now = moment( );
 	return {
-		title: now.format( 'DD/MM/YYYY HH:MM:SS' ),
+		title: now.format( 'DD/MM/YYYY, hh:mm:ss ' ),
 		queueID: genUUID( ),
 		created_time: new Date( ).getTime( ),
 		params: {
-			tollerances: [ 1250, 250, 50 ],
+			tollerances: [ 750, 125, 25 ],
 			points: 25000,
 			limit: 1000
 		},
 		size: {
-			x: 600,
-			y: 600
+			x: 280,
+			y: 320
 		}
 	};
 }
