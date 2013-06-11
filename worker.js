@@ -104,7 +104,7 @@ var startRender = function( m ) {
 	var $job = {
 		data: newJob( ),
 		progress: function( current, limit ) {
-			var progressPercentage = Math.round((( current / limit ) * 100)*100)/100;
+			var progressPercentage = Math.round( ( ( current / limit ) * 100 ) * 100 ) / 100;
 			process.stdout.write( '\r  current task: ' + progressPercentage + '% complete' );
 			var currentSplit = limit / 8;
 			//	if current surpasses split
@@ -150,13 +150,13 @@ function newJob( ) {
 		queueID: genUUID( ),
 		created_time: new Date( ).getTime( ),
 		params: {
-			tollerances: [ 1250, 250, 50 ],
-			points: 5000,
-			limit: 50000
+			tollerances: [ 750, 250, 50 ],
+			points: 90000,
+			limit: 10000
 		},
 		size: {
-			x: 1024,
-			y: 1024
+			x: 3000,
+			y: 3000
 		}
 	};
 }
