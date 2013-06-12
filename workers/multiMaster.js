@@ -1,3 +1,7 @@
+//inport google closure name space
+require( 'nclosure' ).nclosure( );
+//  matricies google closure unit
+goog.require( 'goog.math.Matrix' );
 var Hook = require( '../lib/Hook' ).Hook,
 	genUUID = require( '../lib/genUUID' ),
 	Threads = require( 'webworker-threads' ),
@@ -9,8 +13,8 @@ var Hook = require( '../lib/Hook' ).Hook,
 	config = {
 		threads: 4,
 		resolution: {
-			x: 600,
-			y: 600
+			x: 1080,
+			y: 1024
 		}
 	};
 $this = this,
@@ -31,8 +35,6 @@ function $log( m, type ) {
 	// } );
 	return;
 }
-
-function $save( ) {}
 //  create new socket hook for catching the servers render calls
 var workSocket = new Hook( {
 	name: 'renderworker_' + process.pid,
@@ -54,7 +56,7 @@ workSocket.on( 'hook::newListener', function( type, hookName ) {
 /**
  *	Initialise the workers
  */
-for ( var k = 0; k < 10; k++ ) {
+for ( var k = 0; k < config.threads; k++ ) {
 	//	spawn new workers, they spin up and then wait for instruction over ipc
 	buddhaWorkerPool[ k ] = new Worker( 'workers/multiWorker.js' );
 	//	on worker returning result
@@ -80,12 +82,15 @@ for ( var k = 0; k < 10; k++ ) {
 		}
 		//	place data on virtual canvas
 		ctx.putImageData( canvasData, 0, 0 );
-		//	save data to file
-		ctx.canvas.toBuffer( function( errr, buffer ) {
-			var savePath = path.join( __dirname, '../public/images/renders/' + currentQueueID + '_' + event.data.id + '.png' );
-			fs.writeFile( savePath, buffer );
-			$log( 'file saved to "' + savePath + '"' );
-		} );
+		//	if all workers have returned work
+		if ( event.data.id > ( config.threads - 1 ) ) {
+			//	save data to file
+			ctx.canvas.toBuffer( function( errr, buffer ) {
+				var savePath = path.join( __dirname, '../public/images/renders/' + currentQueueID + '.png' );
+				fs.writeFile( savePath, buffer );
+				$log( 'file saved to "' + savePath + '"' );
+			} );
+		}
 	};
 	//	bind to eorror event on thread
 	buddhaWorkerPool[ k ].thread.on( 'error', function( err ) {
@@ -108,9 +113,9 @@ workSocket.on( 'workmaster::render', function( job ) {
 		queueID: genUUID( ),
 		created_time: new Date( ).getTime( ),
 		params: {
-			tollerances: [ 1250, 250, 50 ],
-			points: 50000,
-			limit: 10000 / 10
+			tollerances: [ 750, 250, 50 ],
+			points: config.resolution.x * config.resolution.y,
+			limit: Math.round( ( config.resolution.x * config.resolution.y ) * config.threads )
 		},
 		size: {
 			x: config.resolution.x,
@@ -118,7 +123,7 @@ workSocket.on( 'workmaster::render', function( job ) {
 		}
 	};
 	//	issue work to each worker
-	for ( var k = 0; k < 10; k++ ) {
+	for ( var k = 0; k < config.threads; k++ ) {
 		buddhaWorkerPool[ k ].postMessage( {
 			opt: [ baseOptions.size.x, baseOptions.size.y, baseOptions.params.limit * ( k + 1 ), baseOptions.params.tollerances[ 0 ], baseOptions.params.tollerances[ 1 ], baseOptions.params.tollerances[ 2 ] ],
 			wid: genUUID( ),

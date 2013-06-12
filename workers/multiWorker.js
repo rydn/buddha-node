@@ -195,7 +195,7 @@ var produceImage = function( ) {
 		}
 	}
 	var nowTime = new Date( ).getTime( );
-	var totalTime =  (nowTime - start) / 1000 ;
+	var totalTime = ( nowTime - start ) / 1000;
 	console.log( 'Worker(' + gid + ') returning render took: ' + totalTime + 's' );
 	// Send message to main thread with the generated pixel map
 	self.postMessage( {
@@ -210,10 +210,10 @@ onmessage = function( event ) {
 	start = new Date( ).getTime( );
 	wid = event.data.wid;
 	gid = event.data.gid + 1;
-	console.log( 'Worker(' + gid + ') received instruction to begin render...' );
 	width = event.data.opt[ 0 ];
 	height = event.data.opt[ 1 ];
 	samples = event.data.opt[ 2 ];
+	console.log( 'Worker(' + gid + ') received instruction to begin render ' + samples + ' iterations' );
 	//console.log( event );
 	//console.log( 'Worker(' + event.data.wid + ')  will begin rendering a image with proportions: ' + height + 'x' + width + ' sampling: ' + samples );
 	rgb_levels = [ event.data.opt[ 3 ], event.data.opt[ 4 ], event.data.opt[ 5 ] ];
