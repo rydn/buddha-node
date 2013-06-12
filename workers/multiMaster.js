@@ -12,13 +12,13 @@ var Hook = require( '../lib/Hook' ).Hook,
 	fs = require( 'fs' ),
 	Canvas = require( 'canvas' ),
 	config = {
-		threads: os.cpus( ).length * 2,
+		threads: os.cpus( ).length ,
 		resolution: {
 			x: 1080,
-			y: 1024
+			y: 1080
 		},
-		complexity: 4, //	complexity exponent
-		passes: 100
+		complexity: 6, //	complexity exponent
+		passes: 10
 	};
 $this = this,
 currentQueueID = null,
@@ -64,47 +64,84 @@ for ( var k = 0; k < config.threads; k++ ) {
 	buddhaWorkerPool[ k ] = new Worker( 'workers/multiWorker.js' );
 	//	on worker returning result
 	buddhaWorkerPool[ k ].onmessage = function( event ) {
-		buddhaWorkerPool[ event.data.id - 1 ].ended = new Date( ).getTime( );
-		$log( 'Worker(' + event.data.id + ') returned result, took: ' + ( buddhaWorkerPool[ event.data.id - 1 ].ended - buddhaWorkerPool[ event.data.id - 1 ].started ) / 1000 + 'secs. Now interpolating....', 'workRes' );
-		var canvas = new Canvas( config.resolution.x, config.resolution.y );
-		var canvasWidth = canvas.width;
-		var canvasHeight = canvas.height;
-		var ctx = canvas.getContext( "2d" );
-		ctx.fillStyle = 'black';
-		ctx.fillRect( 0, 0, canvasWidth, canvasHeight );
-		var canvasData = ctx.getImageData( 0, 0, canvasWidth, canvasHeight );
-		for ( i = 0; i < canvasWidth; i++ ) {
-			for ( j = 0; j < canvasHeight; j++ ) {
-				if ( pixels[ ( j * canvasWidth + i ) * 3 + 0 ] != event.data.buffer[ ( j * canvasWidth + i ) * 3 + 0 ] ) pixels[ ( j * canvasWidth + i ) * 3 + 0 ] = Math.floor( ( pixels[ ( j * canvasWidth + i ) * 3 + 0 ] + 2 * event.data.buffer[ ( j * canvasWidth + i ) * 3 + 0 ] ) / 3 );
-				if ( pixels[ ( j * canvasWidth + i ) * 3 + 1 ] != event.data.buffer[ ( j * canvasWidth + i ) * 3 + 1 ] ) pixels[ ( j * canvasWidth + i ) * 3 + 1 ] = Math.floor( ( pixels[ ( j * canvasWidth + i ) * 3 + 1 ] + 2 * event.data.buffer[ ( j * canvasWidth + i ) * 3 + 1 ] ) / 3 );
-				if ( pixels[ ( j * canvasWidth + i ) * 3 + 2 ] != event.data.buffer[ ( j * canvasWidth + i ) * 3 + 2 ] ) pixels[ ( j * canvasWidth + i ) * 3 + 2 ] = Math.floor( ( pixels[ ( j * canvasWidth + i ) * 3 + 2 ] + 2 * event.data.buffer[ ( j * canvasWidth + i ) * 3 + 2 ] ) / 3 );
-				canvasData.data[ ( j * canvasWidth + i ) * 4 + 0 ] = pixels[ ( j * canvasWidth + i ) * 3 + 0 ];
-				canvasData.data[ ( j * canvasWidth + i ) * 4 + 1 ] = pixels[ ( j * canvasWidth + i ) * 3 + 1 ];
-				canvasData.data[ ( j * canvasWidth + i ) * 4 + 2 ] = pixels[ ( j * canvasWidth + i ) * 3 + 2 ];
-				canvasData.data[ ( j * canvasWidth + i ) * 4 + 3 ] = 255;
+		//	message routing
+		switch(event.data.action){
+			case 'complete':
+				interpolate(event);
+			break;
+			case 'log':
+				$log(event.data.msg, 'log');
+			break;
+			case 'progress':
+				progress(event.data.current, event.data.limit);
+			break;
+			default:
+				$log(JSON.stringify(event), 'unknownWorkerResponse');
+			break;
+		}
+		 function progress( current, limit ) {
+			var progressPercentage = Math.round( ( ( current / limit ) * 100 ) * 100 ) / 100;
+			process.stdout.write( '\r  current task: ' + progressPercentage + '% complete' );
+			var currentSplit = limit / 8;
+			//	if current surpasses split
+			if ( current >= currentSplit ) {
+				//	if current is wholy devisable by current split
+				if ( ( current % currentSplit ) === 0 ) {
+					var computeTime = ( new Date( ).getTime( ) - lastTime ) / currentSplit;
+					lastTime = new Date( ).getTime( );
+					var iterationsLeft = limit - current;
+					var timeLeft = Math.round( ( ( ( computeTime * iterationsLeft ) / 1000 ) / 60 ) * 100 ) / 100;
+					var message = 'Progress ' + current + '/' + limit + ', compute time: ' + computeTime + 'ms/iteration, time left: ' + timeLeft + ' minutes';
+					workSocket.emit( 'progress', {
+						message: message,
+						values: [ limit, current ]
+					} );
+				}
 			}
 		}
-		//	place data on virtual canvas
-		ctx.putImageData( canvasData, 0, 0 );
-		//	if all workers have returned work
-		if ( event.data.id > ( config.threads - 1 ) ) {
-			//	save data to file
-			ctx.canvas.toBuffer( function( errr, buffer ) {
-				var savePath = path.join( __dirname, '../public/images/renders/' + currentQueueID + '.png' );
-				fs.writeFile( savePath, buffer );
-				$log( 'file saved to "' + savePath + '"' );
-			} );
-		}
-	};
-	//	bind to eorror event on thread
-	buddhaWorkerPool[ k ].thread.on( 'error', function( err ) {
-		$log( err, 'error' );
-	} );
-	buddhaWorkerPool[ k ].onerror = function( err ) {
-		console.log( require( 'util' ).inspect( err ) );
-		$log( err, 'error' );
-	};
-	$log( 'Worker #' + ( buddhaWorkerPool[ k ].thread.id + 1 ) + ' ready for work', 'status' );
+		function interpolate( event ) {
+			buddhaWorkerPool[ event.data.id - 1 ].ended = new Date( ).getTime( );
+			$log( 'Worker(' + event.data.id + ') returned result, took: ' + ( buddhaWorkerPool[ event.data.id - 1 ].ended - buddhaWorkerPool[ event.data.id - 1 ].started ) / 1000 + 'secs. Now interpolating....', 'workRes' );
+			var canvas = new Canvas( config.resolution.x, config.resolution.y );
+			var canvasWidth = canvas.width;
+			var canvasHeight = canvas.height;
+			var ctx = canvas.getContext( "2d" );
+			ctx.fillStyle = 'black';
+			ctx.fillRect( 0, 0, canvasWidth, canvasHeight );
+			var canvasData = ctx.getImageData( 0, 0, canvasWidth, canvasHeight );
+			for ( i = 0; i < canvasWidth; i++ ) {
+				for ( j = 0; j < canvasHeight; j++ ) {
+					if ( pixels[ ( j * canvasWidth + i ) * 3 + 0 ] != event.data.buffer[ ( j * canvasWidth + i ) * 3 + 0 ] ) pixels[ ( j * canvasWidth + i ) * 3 + 0 ] = Math.floor( ( pixels[ ( j * canvasWidth + i ) * 3 + 0 ] + 2 * event.data.buffer[ ( j * canvasWidth + i ) * 3 + 0 ] ) / 3 );
+					if ( pixels[ ( j * canvasWidth + i ) * 3 + 1 ] != event.data.buffer[ ( j * canvasWidth + i ) * 3 + 1 ] ) pixels[ ( j * canvasWidth + i ) * 3 + 1 ] = Math.floor( ( pixels[ ( j * canvasWidth + i ) * 3 + 1 ] + 2 * event.data.buffer[ ( j * canvasWidth + i ) * 3 + 1 ] ) / 3 );
+					if ( pixels[ ( j * canvasWidth + i ) * 3 + 2 ] != event.data.buffer[ ( j * canvasWidth + i ) * 3 + 2 ] ) pixels[ ( j * canvasWidth + i ) * 3 + 2 ] = Math.floor( ( pixels[ ( j * canvasWidth + i ) * 3 + 2 ] + 2 * event.data.buffer[ ( j * canvasWidth + i ) * 3 + 2 ] ) / 3 );
+					canvasData.data[ ( j * canvasWidth + i ) * 4 + 0 ] = pixels[ ( j * canvasWidth + i ) * 3 + 0 ];
+					canvasData.data[ ( j * canvasWidth + i ) * 4 + 1 ] = pixels[ ( j * canvasWidth + i ) * 3 + 1 ];
+					canvasData.data[ ( j * canvasWidth + i ) * 4 + 2 ] = pixels[ ( j * canvasWidth + i ) * 3 + 2 ];
+					canvasData.data[ ( j * canvasWidth + i ) * 4 + 3 ] = 255;
+				}
+			}
+			//	place data on virtual canvas
+			ctx.putImageData( canvasData, 0, 0 );
+			//	if all workers have returned work
+			if ( event.data.id > ( config.threads - 1 ) ) {
+				//	save data to file
+				ctx.canvas.toBuffer( function( errr, buffer ) {
+					var savePath = path.join( __dirname, '../public/images/renders/' + currentQueueID + '.png' );
+					fs.writeFile( savePath, buffer );
+					$log( 'file saved to "' + savePath + '"' );
+				} );
+			}
+		};
+		//	bind to eorror event on thread
+		buddhaWorkerPool[ k ].thread.on( 'error', function( err ) {
+			$log( err, 'error' );
+		} );
+		buddhaWorkerPool[ k ].onerror = function( err ) {
+			console.log( require( 'util' ).inspect( err ) );
+			$log( err, 'error' );
+		};
+		$log( 'Worker #' + ( buddhaWorkerPool[ k ].thread.id + 1 ) + ' ready for work', 'status' );
+	}
 }
 //	on new work issued
 workSocket.on( 'workmaster::render', function( job ) {
@@ -125,8 +162,8 @@ workSocket.on( 'workmaster::render', function( job ) {
 			y: config.resolution.y
 		}
 	};
-	var totalterations = ( ( baseOptions.params.limit * baseOptions.params.points ) * ( baseOptions.size.x * baseOptions.size.y ) ) * 100;
-	$log( 'received instruction to begin rendering,	' + totalterations + ' iterations required,	sending to: ' + config.threads + ' workers,	jobid: ' + currentQueueID, 'render' );
+	var totalterations = ( ( baseOptions.params.limit * baseOptions.params.points ) * ( baseOptions.size.x * baseOptions.size.y ) ) / config.threads;
+	$log( 'received instruction to begin rendering, have to calculate: ' + baseOptions.params.limit + ' points over  a total: ' + totalterations + ' iterations , sending to: ' + config.threads + ' workers, jobid: ' + currentQueueID, 'render' );
 	for ( var k = 0; k < config.threads; k++ ) {
 		//	issue work to each worker
 		buddhaWorkerPool[ k ].postMessage( {

@@ -5,17 +5,6 @@ Array.max = function( array ) {
 Array.min = function( array ) {
 	return Math.min.apply( Math, array );
 };
-
-function $log( m, type ) {
-	//console.log( 'Worker[' + process.pid + '] => ' + m );
-	//  push onto socket
-	// workSocket.emit( 'log', {
-	//  m: m,
-	//  pid: process.pid,
-	//  type: type
-	// } );
-	return;
-}
 // Variables
 var wid = null,
 	gid = null;
@@ -33,8 +22,8 @@ var width = 600,
 	real_l = -2.0,
 	real_h = 2.0,
 	// Imaginary stage
-	imaginary_l = -1.0,
-	imaginary_h = 1.0,
+	imaginary_l = -2.0,
+	imaginary_h = 2.0,
 	// C complex
 	Cr = 0.0,
 	Ci = 0.0,
@@ -201,7 +190,8 @@ var produceImage = function( ) {
 	self.postMessage( {
 		buffer: pixelBuffer,
 		wid: wid,
-		id: gid
+		id: gid,
+		action: 'complete'
 	} );
 	self.close( );
 };
@@ -217,8 +207,9 @@ onmessage = function( event ) {
 	//console.log( 'Worker(' + gid + ') received instruction to begin rendering ' + samples + ' iterations,  approximate necessary computations: ' + totalComp );
 	rgb_levels = [ event.data.opt[ 3 ], event.data.opt[ 4 ], event.data.opt[ 5 ] ];
 	init( );
-	for ( var i = 0; i <= event.data.passes ; i++ ) {
-		console.log('Worker('+gid+') running pass #'+(i+1) +'/'+event.data.passes);
+	for ( var i = 0; i <= event.data.passes; i++ ) {
+		progress(i+1, event.data.passes);
+
 		evaluate( );
 		if ( i === event.data.passes ) {
 			//	render to canvas
@@ -226,3 +217,22 @@ onmessage = function( event ) {
 		}
 	};
 };
+
+function $log( m ) {
+	self.postMessage( {
+		action: 'log',
+		msg: m
+	} );
+	return;
+}
+
+function $progress( current, limit ) {
+	if ( ( current % 5 ) === 0 ) {
+		self.postMessage( {
+			action: 'progress',
+			current: current,
+			limit: limit
+		} );
+		$log( 'Worker(' + gid + ') running pass #' + current + '/' + limit );
+	}
+}
