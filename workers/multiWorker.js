@@ -33,8 +33,8 @@ var width = 600,
 	real_l = -2.0,
 	real_h = 2.0,
 	// Imaginary stage
-	imaginary_l = -2.0,
-	imaginary_h = 2.0,
+	imaginary_l = -1.0,
+	imaginary_h = 1.0,
 	// C complex
 	Cr = 0.0,
 	Ci = 0.0,
@@ -156,7 +156,6 @@ var evaluate = function( ) {
 			}
 		}
 	}
-	produceImage( );
 };
 // Find max hit counter for a color
 var findMaxColor = function( forColor ) {
@@ -182,6 +181,7 @@ var produceImage = function( ) {
 	var factorColorR = 255.0 / findMaxColor( 'red' );
 	var factorColorG = 255.0 / findMaxColor( 'green' );
 	var factorColorB = 255.0 / findMaxColor( 'blue' );
+	//	iterate each pixel in map
 	for ( i = 0; i < width; i++ ) {
 		for ( j = 0; j < height; j++ ) {
 			// Calculate scaled hit counter value
@@ -194,9 +194,9 @@ var produceImage = function( ) {
 			pixelBuffer[ ( j * width + i ) * 3 + 2 ] = colorB;
 		}
 	}
-	var nowTime = new Date( ).getTime( );
-	var totalTime = ( nowTime - start ) / 1000;
-	console.log( 'Worker(' + gid + ') returning render took: ' + totalTime + 's' );
+	// var nowTime = new Date( ).getTime( );
+	// var totalTime = ( nowTime - start ) / 1000;
+	// console.log( 'Worker(' + gid + ') returning render took: ' + totalTime + 's' );
 	// Send message to main thread with the generated pixel map
 	self.postMessage( {
 		buffer: pixelBuffer,
@@ -213,10 +213,16 @@ onmessage = function( event ) {
 	width = event.data.opt[ 0 ];
 	height = event.data.opt[ 1 ];
 	samples = event.data.opt[ 2 ];
-	console.log( 'Worker(' + gid + ') received instruction to begin render ' + samples + ' iterations' );
-	//console.log( event );
-	//console.log( 'Worker(' + event.data.wid + ')  will begin rendering a image with proportions: ' + height + 'x' + width + ' sampling: ' + samples );
+	var totalComp = ( ( width * height ) * samples ) * ( ( event.data.opt[ 3 ] + event.data.opt[ 4 ] + event.data.opt[ 5 ] ) / 3 );
+	//console.log( 'Worker(' + gid + ') received instruction to begin rendering ' + samples + ' iterations,  approximate necessary computations: ' + totalComp );
 	rgb_levels = [ event.data.opt[ 3 ], event.data.opt[ 4 ], event.data.opt[ 5 ] ];
 	init( );
-	evaluate( );
+	for ( var i = 0; i <= event.data.passes ; i++ ) {
+		console.log('Worker('+gid+') running pass #'+(i+1) +'/'+event.data.passes);
+		evaluate( );
+		if ( i === event.data.passes ) {
+			//	render to canvas
+			produceImage( );
+		}
+	};
 };

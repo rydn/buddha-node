@@ -6,16 +6,19 @@ var Hook = require( '../lib/Hook' ).Hook,
 	genUUID = require( '../lib/genUUID' ),
 	Threads = require( 'webworker-threads' ),
 	path = require( 'path' ),
+	os = require( 'os' ),
 	Worker = require( 'webworker-threads' ).Worker,
 	moment = require( 'moment' ),
 	fs = require( 'fs' ),
 	Canvas = require( 'canvas' ),
 	config = {
-		threads: 4,
+		threads: os.cpus( ).length * 2,
 		resolution: {
 			x: 1080,
 			y: 1024
-		}
+		},
+		complexity: 4, //	complexity exponent
+		passes: 100
 	};
 $this = this,
 currentQueueID = null,
@@ -61,7 +64,8 @@ for ( var k = 0; k < config.threads; k++ ) {
 	buddhaWorkerPool[ k ] = new Worker( 'workers/multiWorker.js' );
 	//	on worker returning result
 	buddhaWorkerPool[ k ].onmessage = function( event ) {
-		$log( 'Worker(' + event.data.id + ') returned result. Now interpolating....', 'workRes' );
+		buddhaWorkerPool[ event.data.id - 1 ].ended = new Date( ).getTime( );
+		$log( 'Worker(' + event.data.id + ') returned result, took: ' + ( buddhaWorkerPool[ event.data.id - 1 ].ended - buddhaWorkerPool[ event.data.id - 1 ].started ) / 1000 + 'secs. Now interpolating....', 'workRes' );
 		var canvas = new Canvas( config.resolution.x, config.resolution.y );
 		var canvasWidth = canvas.width;
 		var canvasHeight = canvas.height;
@@ -105,7 +109,6 @@ for ( var k = 0; k < config.threads; k++ ) {
 //	on new work issued
 workSocket.on( 'workmaster::render', function( job ) {
 	currentQueueID = job.data.queueID;
-	$log( 'received instruction to begin rendering, jobid: ' + currentQueueID, 'render' );
 	var now = moment( );
 	//	base object for job
 	var baseOptions = {
@@ -114,21 +117,26 @@ workSocket.on( 'workmaster::render', function( job ) {
 		created_time: new Date( ).getTime( ),
 		params: {
 			tollerances: [ 750, 250, 50 ],
-			points: config.resolution.x * config.resolution.y,
-			limit: Math.round( ( config.resolution.x * config.resolution.y ) * config.threads )
+			points: Math.round( ( config.resolution.x * config.resolution.y ) * config.complexity ),
+			limit: Math.round( ( ( config.resolution.x * config.resolution.y ) * config.complexity ) / config.threads )
 		},
 		size: {
 			x: config.resolution.x,
 			y: config.resolution.y
 		}
 	};
-	//	issue work to each worker
+	var totalterations = ( ( baseOptions.params.limit * baseOptions.params.points ) * ( baseOptions.size.x * baseOptions.size.y ) ) * 100;
+	$log( 'received instruction to begin rendering,	' + totalterations + ' iterations required,	sending to: ' + config.threads + ' workers,	jobid: ' + currentQueueID, 'render' );
 	for ( var k = 0; k < config.threads; k++ ) {
+		//	issue work to each worker
 		buddhaWorkerPool[ k ].postMessage( {
 			opt: [ baseOptions.size.x, baseOptions.size.y, baseOptions.params.limit * ( k + 1 ), baseOptions.params.tollerances[ 0 ], baseOptions.params.tollerances[ 1 ], baseOptions.params.tollerances[ 2 ] ],
 			wid: genUUID( ),
-			gid: k
+			gid: k,
+			passes: config.passes
 		} );
+		buddhaWorkerPool[ k ].started = new Date( ).getTime( );
+		isActive = true;
 	}
 } );
 //  connect message socket
