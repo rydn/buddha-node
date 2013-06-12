@@ -8,7 +8,7 @@ var fs = require( 'fs' ),
 	Canvas = require( 'canvas' ),
 	moment = require( 'moment' ),
 	genUUID = require( './lib/genUUID' ),
-	Hook = require( './lib/Hook' ).Hook,
+	Hook = require( '../lib/Hook' ).Hook,
 	EventEmitter2 = require( 'eventemitter2' ).EventEmitter2,
 	isActive = false;
 //  Event source
@@ -42,7 +42,6 @@ workSocket.on( 'hook::newListener', function( type, hookName ) {
 workSocket.on( 'workmaster::render', function( job ) {
 	if ( !isActive ) {
 		$log( 'received instruction to begin rendering, jobid: ' + job.data.queueID, 'render' );
-
 		workSocket.emit( 'start', {
 			name: workSocket.name,
 			job: job,
@@ -51,7 +50,6 @@ workSocket.on( 'workmaster::render', function( job ) {
 		} );
 		isActive = true;
 		startRender( job );
-
 	} else {
 		$log( 'currently rendering... another process will need to prcess it, sending busy' );
 		workSocket.emit( 'busy', {
@@ -71,13 +69,9 @@ function $log( m, type ) {
 		type: type
 	} );
 	return;
-
 }
-
 //      event handlers for event source
 //
-
-
 //  on job complete
 eventSource.on( '*::done', function( workData ) {
 	$log( 'Job ' + job.data.queueID + ' complete in: ' );
@@ -100,7 +94,6 @@ var startRender = function( m ) {
 	var lastTime = new Date( ).getTime( );
 	var data = m.data;
 	//	work out at what interval to display progress
-
 	var $job = {
 		data: newJob( ),
 		progress: function( current, limit ) {
@@ -123,8 +116,6 @@ var startRender = function( m ) {
 				}
 			}
 		}
-
-
 	};
 	$log( 'starting render of fractal with dimentions: ' + $job.data.size.x + 'x' + $job.data.size.y + ' going to iterate a maximum of ' + $job.data.params.limit + ' times to discover the escape orbits for ' + $job.data.params.points + ' points', 'render' );
 	//  initate work actor and wait to be called back once work is complete
@@ -136,7 +127,6 @@ var startRender = function( m ) {
 				result: workDone
 			} );
 	} );
-
 };
 /*
     Private  methods
@@ -224,14 +214,10 @@ function actor( job, done ) {
 	}
 
 	function save( ) {
-
 		context.canvas.toBuffer( function( errr, buffer ) {
 			fs.writeFile( __dirname + '/public/images/renders/' + job.data.queueID + '.png', buffer );
 			$log( 'file saved to "public/images/renders/' + job.data.queueID + '.png"' );
 		} );
-
-
-
 	}
 
 	function plot( ) {
@@ -284,8 +270,6 @@ function actor( job, done ) {
 		}
 	}
 
-
-
 	function render( ) {
 		var data = image.data,
 			r, g, b, tmpExposure, i, x, y;
@@ -326,7 +310,6 @@ function actor( job, done ) {
 				image.data[ ( i * N + j ) * 4 + 3 ] = 255; // alpha channel
 		cb( );
 	}
-
 	//  istantiation of above methods
 	init( function( ) {
 		$log( 'established image constants, now rendering' );
