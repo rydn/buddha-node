@@ -204,18 +204,17 @@ onmessage = function( event ) {
 	height = event.data.opt[ 1 ];
 	samples = event.data.opt[ 2 ];
 	var totalComp = ( ( width * height ) * samples ) * ( ( event.data.opt[ 3 ] + event.data.opt[ 4 ] + event.data.opt[ 5 ] ) / 3 );
-	//console.log( 'Worker(' + gid + ') received instruction to begin rendering ' + samples + ' iterations,  approximate necessary computations: ' + totalComp );
+	console.log( 'Worker(' + gid + ') received instruction to begin rendering ' + samples + ' iterations,  approximate necessary computations: ' + totalComp );
 	rgb_levels = [ event.data.opt[ 3 ], event.data.opt[ 4 ], event.data.opt[ 5 ] ];
 	init( );
 	for ( var i = 0; i <= event.data.passes; i++ ) {
-		progress(i+1, event.data.passes);
-
+		$progress( i + 1, event.data.passes );
 		evaluate( );
 		if ( i === event.data.passes ) {
 			//	render to canvas
 			produceImage( );
 		}
-	};
+	}
 };
 
 function $log( m ) {

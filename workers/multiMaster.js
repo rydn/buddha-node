@@ -12,13 +12,13 @@ var Hook = require( '../lib/Hook' ).Hook,
 	fs = require( 'fs' ),
 	Canvas = require( 'canvas' ),
 	config = {
-		threads: os.cpus( ).length ,
+		threads: os.cpus( ).length,
 		resolution: {
 			x: 1080,
 			y: 1080
 		},
-		complexity: 6, //	complexity exponent
-		passes: 10
+		complexity: 48, //	complexity exponent
+		passes: 50
 	};
 $this = this,
 currentQueueID = null,
@@ -65,21 +65,22 @@ for ( var k = 0; k < config.threads; k++ ) {
 	//	on worker returning result
 	buddhaWorkerPool[ k ].onmessage = function( event ) {
 		//	message routing
-		switch(event.data.action){
+		switch ( event.data.action ) {
 			case 'complete':
-				interpolate(event);
-			break;
+				interpolate( event );
+				break;
 			case 'log':
-				$log(event.data.msg, 'log');
-			break;
+				$log( event.data.msg, 'log' );
+				break;
 			case 'progress':
-				progress(event.data.current, event.data.limit);
-			break;
+				progress( event.data.current, event.data.limit );
+				break;
 			default:
-				$log(JSON.stringify(event), 'unknownWorkerResponse');
-			break;
+				$log( JSON.stringify( event ), 'unknownWorkerResponse' );
+				break;
 		}
-		 function progress( current, limit ) {
+
+		function progress( current, limit ) {
 			var progressPercentage = Math.round( ( ( current / limit ) * 100 ) * 100 ) / 100;
 			process.stdout.write( '\r  current task: ' + progressPercentage + '% complete' );
 			var currentSplit = limit / 8;
@@ -99,6 +100,7 @@ for ( var k = 0; k < config.threads; k++ ) {
 				}
 			}
 		}
+
 		function interpolate( event ) {
 			buddhaWorkerPool[ event.data.id - 1 ].ended = new Date( ).getTime( );
 			$log( 'Worker(' + event.data.id + ') returned result, took: ' + ( buddhaWorkerPool[ event.data.id - 1 ].ended - buddhaWorkerPool[ event.data.id - 1 ].started ) / 1000 + 'secs. Now interpolating....', 'workRes' );
@@ -131,7 +133,7 @@ for ( var k = 0; k < config.threads; k++ ) {
 					$log( 'file saved to "' + savePath + '"' );
 				} );
 			}
-		};
+		}
 		//	bind to eorror event on thread
 		buddhaWorkerPool[ k ].thread.on( 'error', function( err ) {
 			$log( err, 'error' );
